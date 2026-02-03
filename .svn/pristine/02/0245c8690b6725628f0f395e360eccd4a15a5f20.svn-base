@@ -1,0 +1,34 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import '../assets/css/admin/components/header.css';
+
+const Header = () => {
+    return (
+        <header>
+            {/* fixed-top 클래스가 있어서 상단에 고정됩니다 */}
+            <nav className="navbar navbar-expand-lg navbar-dark bg-dark fixed-top tudio-header border-bottom border-secondary">
+                <div className="container-fluid px-4">
+                    {/* 로고 클릭 시 /admin 홈으로 이동 */}
+                    <Link className="navbar-brand tudio-brand" to="/admin">
+                        <span className="text-primary">Tudio</span>
+                        {/* style 속성은 객체(Object) 형태로 넣어야 합니다 */}
+                        <span className="badge bg-secondary ms-1" style={{ fontSize: '0.7rem', fontWeight: 'normal' }}>
+                            Admin
+                        </span>
+                    </Link>
+
+                    <div className="d-flex align-items-center ms-auto">
+                        <div className="text-white small me-3 opacity-75">
+                            <i className="bi bi-shield-lock-fill me-1"></i> 관리자(Master)
+                        </div>
+                        <button className="btn btn-header-outline btn-sm">
+                            로그아웃
+                        </button>
+                    </div>
+                </div>
+            </nav>
+        </header>
+    );
+};
+
+export default Header;

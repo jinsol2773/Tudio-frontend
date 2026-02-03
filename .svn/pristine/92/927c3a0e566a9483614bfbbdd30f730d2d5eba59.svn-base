@@ -1,0 +1,9 @@
+import React from 'react'
+
+const MeetingRoomList = () => {
+  return (
+    <div>MeetingRoomList</div>
+  )
+}
+
+export default MeetingRoomList

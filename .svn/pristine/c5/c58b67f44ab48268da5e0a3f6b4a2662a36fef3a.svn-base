@@ -1,0 +1,61 @@
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import SiteMain from "./pages/siteAdmin/SiteMain.jsx";
+
+// [페이지 컴포넌트 import]
+import UserList from "./pages/siteAdmin/user/UserList.jsx";
+import BoardNotice from "./pages/siteAdmin/board/BoardNotice.jsx";
+import BoardFaq from "./pages/siteAdmin/board/BoardFaq.jsx";
+import BoardInquiry from "./pages/siteAdmin/board/BoardInquiry.jsx";
+import SurveyList from "./pages/siteAdmin/survey-admin/SurveyList.jsx";
+import SurveyForm from "./pages/siteAdmin/survey-admin/SurveyForm.jsx";
+import LogLogin from "./pages/siteAdmin/log/LogLogin.jsx";
+import LogError from "./pages/siteAdmin/log/LogError.jsx";
+import PolicyTerms from "./pages/siteAdmin/policy/PolicyTerms.jsx";
+import MeetingRoomList from "./pages/siteAdmin/meetingRoom/MeetingRoomList.jsx";
+import MeetingRoomBooked from "./pages/siteAdmin/meetingRoom/MeetingRoomBooked.jsx";
+import axios from 'axios';
+
+axios.defaults.withCredentials = true;
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* /admin 경로로 들어오면 SiteMain 레이아웃을 보여줌 */}
+        <Route path="/admin" element={<SiteMain />}>
+          
+          {/* 1. 초기 화면 설정 (initUrl 대응) */}
+          <Route index element={<Navigate to="/admin/user/list" replace />} />
+
+          {/* 2. 페이지 라우팅 */}
+          {/* 회원 관리 */}
+          <Route path="user/list" element={<UserList />} />
+
+          {/* 게시판 관리 */}
+          <Route path="board/notice" element={<BoardNotice />} />
+          <Route path="board/faq" element={<BoardFaq />} />
+          <Route path="board/inquiry" element={<BoardInquiry />} />
+
+          {/* 설문 관리 */}
+          <Route path="survey/list" element={<SurveyList />} />
+          <Route path="survey/form" element={<SurveyForm />} /> {/* 등록/수정 폼 */}
+
+          {/* 로그 관리 */}
+          <Route path="log/login" element={<LogLogin />} />
+          <Route path="log/error" element={<LogError />} />
+
+          {/* 정책 관리 */}
+          <Route path="policy/terms" element={<PolicyTerms />} />
+
+          {/* 회의실 관리 */}
+          <Route path="meetingRoom/meetingRoomList" element={<MeetingRoomList />} />
+          <Route path="meetingRoom/meetingRoomBooked" element={<MeetingRoomBooked />} />
+          
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+export default App;

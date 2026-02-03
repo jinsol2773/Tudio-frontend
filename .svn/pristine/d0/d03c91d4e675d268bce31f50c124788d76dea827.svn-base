@@ -1,0 +1,367 @@
+// 1. [필수] 리액트 & 라우터 (프레임워크 코어)
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+
+// 2. [외부] 설치한 라이브러리 (기능 -> UI)
+import axios from 'axios';
+import Swal from 'sweetalert2';
+import { Megaphone, Plus, Save, PenLine, Trash2, List, ChevronRight, Search, X, AlertCircle, Calendar, User, Pin } from 'lucide-react';
+
+// 3. [내부] 직접 만든 컴포넌트
+import Pagination from '../../components/common/Pagination';
+
+const BoardNotice = () => {
+  // 1. [페이지 번호 불러오기]
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentPage = parseInt(searchParams.get('page')) || 1; 
+
+  // 2. [데이터 관리]
+  const [posts, setPosts] = useState([]);         // 게시글 리스트 (dataList)
+  const [pageInfo, setPageInfo] = useState(null); // 페이징 계산 정보 (pageInfo)
+
+  // 3. [화면 관리]
+  const [view, setView] = useState('list');       // 화면 상태 ('list' | 'write' | 'detail')
+  const [selectedPost, setSelectedPost] = useState(null); // 상세 조회한 글 데이터
+
+  // 4. [폼 관리] 
+  const [formData, setFormData] = useState({ 
+    noticeTitle: '',      // 제목
+    noticeContent: '',    // 내용
+    noticePinStatus: 'N'  // 상단 고정 여부 (Y/N)
+  });
+
+  // 목록 조회
+  const fetchNoticeList = async () => {
+    try{
+      const res = await axios.get(`http://localhost:8060/api/notice/list?currentPage=${currentPage}`);
+      setPosts(res.data.dataList);    // 리스트 세팅
+      setPageInfo(res.data.pageInfo); // 페이지 버튼 정보 세팅
+    } catch (error) {
+      console.error("목록 조회 실패:", error);
+    }
+  };
+
+  useEffect(() => {
+    if(view === 'list') fetchNoticeList();
+  }, [currentPage, view]);
+
+  // 페이징 버튼 클릭시
+  const handlePageChange = (pageNum) => {
+    setSearchParams({ page: pageNum });
+  };
+
+  // 1. 상세 화면으로 이동
+  const goDetail = (post) => {
+    setSelectedPost(post);
+    setView('detail');
+  };
+
+  // 2. 작성 화면으로 이동
+  const goWrite = () => {
+    setFormData({ noitceTitle: '', noticeContent: '', noticePinStatus: 'N' }); // 폼 초기화
+    setView('write');
+  };
+
+  // 3. 수정 화면으로 이동
+  const goEdit = () => {
+    setFormData({ 
+      noticeTitle: selectedPost.noticeTitle, 
+      noticeContent: selectedPost.noticeContent, 
+      noticePinStatus: selectedPost.noticePinStatus 
+    });
+    setView('edit');
+  };
+
+  // 4. 목록으로 복귀
+  const goList = () => {
+    setView('list');
+    setSelectedPost(null);
+  };
+
+  // 5. 글 저장 (신규 등록)
+  const handleSave = async () => {
+
+    // 유효성 검사
+    if(!formData.noticeTitle.trim()) return Swal.fire('경고', '제목을 입력해주세요', 'warning');
+
+    // 로그인 유저 정보 꺼내기
+    const storedUser = localStorage.getItem("loginUser"); 
+    if (!storedUser) {
+        return Swal.fire('로그인 필요', '로그인 정보가 없습니다.', 'warning');
+    }
+    const loginUser = JSON.parse(storedUser);
+
+    try{
+      const requestData = {
+        ...formData,
+        memberNo: loginUser.memberNo
+      };
+
+      const res = await axios.post("http://localhost:8060/api/notice/write", requestData);
+
+      if(res.data === "SUCCESS"){
+        await Swal.fire('성공', '등록되었습니다', 'success');
+        goList();
+      }else{
+        Swal.fire('실패', '등록 실패', 'error');
+      }
+    }catch (error) {
+      console.error("등록 에러 : ", error);
+      Swal.fire('오류', '서버 통신 오류', 'error')
+    }
+  };
+
+  // 6. 글 수정 (업데이트)
+  const handleUpdate = async () => {
+    
+  };
+
+  // 7. 글 삭제
+  const handleDelete = () => {
+    if (window.confirm('정말 삭제하시겠습니까?')) {
+      setPosts(posts.filter(p => p.id !== selectedPost.id));
+      alert('삭제되었습니다.');
+      goList();
+    }
+  };
+
+  // 8. 핀 상태 변경
+  const handleTogglePin = (e, post) => {
+    e.stopPropagation();
+
+    const newStatus = post.noticePinStatus === 'Y' ? 'N' : 'Y';
+
+    fetch("http://localhost:8060/api/notice/updatePin", {
+      method: "POST", 
+      headers: {"Content-Type" : "application/json"},
+      body: JSON.stringify({
+        noticeNo: post.noticeNo,
+        noticePinStatus: newStatus
+      }),
+    })
+    .then(res => res.text())
+    .then(result => {
+      if(result === "SUCCESS"){
+        const updatedPosts = posts.map(p =>
+          p.noticeNo === post.noticeNo ? {...p, noticePinStatus: newStatus} :p
+        );
+
+        updatedPosts.sort((a, b) => {
+          if(a.noticePinStatus !== b.noticePinStatus){
+            return a.noticePinStatus === 'Y' ? -1 : 1;
+          }
+
+          return b.noticeNo - a.noticeNo;
+        });
+
+        setPosts(updatedPosts);
+      }else{
+        Swal.fire({icon: 'error', title:'상태 변경 실패', text: '상태 변경에 실패했습니다.'});
+      }
+    })
+    .catch(error => {
+      console.error("에러 : ", error);
+      Swal.fire({icon: 'error', title: '오류', text: '서버 연결 실패'});
+    });
+  };
+
+  // 9. 입력 필드 핸들링
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  // === 렌더링 시작 ===
+  return (
+    <div className="flex-grow-1 p-5 d-flex flex-column">
+      
+      {/* 1. Breadcrumb Navigation */}
+      <div className="mb-4">
+        <nav className="text-muted small mb-2 d-flex align-items-center gap-2">
+          <span>Admin</span> <ChevronRight size={12} /> 
+          <span className="text-body">게시판 관리</span> <ChevronRight size={12} />
+          <span className="text-primary fw-bold">공지사항</span>
+        </nav>
+        <div className="d-flex justify-content-between align-items-end">
+          <h2 className="fw-bold text-dark m-0 d-flex align-items-center gap-2">
+            <Megaphone size={24} className="text-primary" /> 
+            {view === 'list' && '공지사항 목록'}
+            {view === 'write' && '공지사항 작성'}
+            {view === 'detail' && '공지사항 상세'}
+            {view === 'edit' && '공지사항 수정'}
+          </h2>
+        </div>
+      </div>
+
+      {/* 2. 컨텐츠 영역 (조건부 렌더링) */}
+      <div className="card shadow-sm border-0 flex-grow-1 d-flex flex-column">
+        
+        {/* ================= VIEW: LIST (목록) ================= */}
+        {view === 'list' && (
+          <>
+            <div className="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+              <div className="text-muted small">총 <span className="fw-bold text-dark">{posts.length}</span>건의 공지가 있습니다.</div>
+              <button className="tudio-btn tudio-btn-primary" onClick={goWrite}>
+                <Plus size={18} /> 글쓰기
+              </button>
+            </div>
+            <div className="card-body p-0">
+              <div className="table-responsive">
+                <table className="table table-hover align-middle mb-0">
+                  <thead className="bg-light text-muted small text-uppercase">
+                    <tr>
+                      <th className="text-center py-3" style={{ width: '80px' }}>No</th>
+                      <th className="py-3 ps-4">제목</th>
+                      <th className="py-3 text-center" style={{ width: '120px' }}>작성자</th>
+                      <th className="py-3 text-center" style={{ width: '150px' }}>작성일</th>
+                      <th className="py-3 text-center" style={{ width: '100px' }}>조회</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {posts.map((post, index) => (
+                      <tr key={post.noticeNo} onClick={() => goDetail(post)} style={{ cursor: 'pointer' }}>
+                        <td className="text-center"  onClick={(e) => handleTogglePin(e, post)}>
+                          {post.noticePinStatus === 'Y' ? (
+                            <div title="상단 고정 해제" className='d-flex justify-content-center'>
+                              <Pin size={20} className='text-danger' fill='currentColor' style={{transform: 'rotate(45deg)'}} />
+                            </div>
+                          ) : (
+                            <span className='text-muted' title='클릭하여 상단 고정'>
+                              {posts.length - index}
+                            </span>
+                          )}
+                        </td>
+                        <td className="ps-4">
+                          <div className="d-flex align-items-center gap-2">
+                            <span className="fw-medium text-dark">{post.noticeTitle}</span>
+                          </div>
+                        </td>
+                        <td className="text-center text-muted small">{post.writer}</td>
+                        <td className="text-center text-muted small number-font">
+                            {post.noticeUpdate ? (
+                              <>
+                                <span className='text-primary'>{post.noticeUpdate.replace('T', ' ').substring(0, 16)}</span>
+                                <small className='d-block text-muted' style={{fontSize: '0.75rem'}}>(수정됨)</small>
+                              </>
+                            ) : (
+                              post.noticeRegdate.replace('T', ' ').substring(0, 16)
+                            )}
+                        </td>
+                        <td className="text-center text-muted small number-font">{post.noticeHit}</td>
+                      </tr>
+                    ))}
+                    {posts.length === 0 && (
+                      <tr><td colSpan="5" className="text-center py-5 text-muted">등록된 공지사항이 없습니다.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ================= VIEW: WRITE & EDIT (작성/수정) ================= */}
+        {(view === 'write' || view === 'edit') && (
+          <div className="card-body p-5">
+            <div className="mb-4">
+              <label className="form-label fw-bold">제목</label>
+              <input 
+                type="text" 
+                className="form-control form-control-lg bg-light" 
+                name="title"
+                value={formData.title} 
+                onChange={handleChange}
+                placeholder="공지사항 제목을 입력하세요" 
+              />
+            </div>
+
+            <div className="mb-4">
+              <label className="form-label fw-bold">내용</label>
+              <textarea 
+                className="form-control bg-light" 
+                name="content"
+                rows="12" 
+                value={formData.content} 
+                onChange={handleChange}
+                placeholder="내용을 입력하세요"
+                style={{ resize: 'none' }}
+              ></textarea>
+            </div>
+
+            <div className="mb-4 form-check">
+               <input 
+                 className="form-check-input" 
+                 type="checkbox" 
+                 id="chkImportant" 
+                 name="important"
+                 checked={formData.important}
+                 onChange={handleChange}
+               />
+               <label className="form-check-label fw-bold text-danger" htmlFor="chkImportant">
+                 <AlertCircle size={16} className="me-1 mb-1"/>
+                 상단 고정 (필독 공지로 등록)
+               </label>
+            </div>
+
+            <div className="d-flex justify-content-end gap-2 border-top pt-4">
+              <button className="btn btn-light border px-4" onClick={goList}>취소</button>
+              {view === 'write' ? (
+                <button className="btn btn-primary px-4 fw-bold" onClick={handleSave}><Save size={18} className="me-1"/> 등록하기</button>
+              ) : (
+                <button className="btn btn-primary px-4 fw-bold" onClick={handleUpdate}><Save size={18} className="me-1"/> 수정 완료</button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ================= VIEW: DETAIL (상세) ================= */}
+        {view === 'detail' && selectedPost && (
+          <div className="card-body p-5 d-flex flex-column">
+            
+            {/* 제목 헤더 */}
+            <div className="border-bottom pb-4 mb-4">
+              <div className="d-flex align-items-center gap-2 mb-2">
+                 {selectedPost.important && <span className="badge bg-danger">필독</span>}
+                 <h3 className="fw-bold m-0">{selectedPost.title}</h3>
+              </div>
+              <div className="d-flex align-items-center gap-4 text-muted small mt-3">
+                 <div className="d-flex align-items-center gap-1"><User size={14}/> {selectedPost.writer}</div>
+                 <div className="vr"></div>
+                 <div className="d-flex align-items-center gap-1"><Calendar size={14}/> {selectedPost.date}</div>
+                 <div className="vr"></div>
+                 <div>조회수 {selectedPost.views}</div>
+              </div>
+            </div>
+
+            {/* 본문 */}
+            <div className="flex-grow-1 mb-5" style={{ minHeight: '200px', whiteSpace: 'pre-line', lineHeight: '1.8' }}>
+              {selectedPost.content}
+            </div>
+
+            {/* 하단 버튼 */}
+            <div className="d-flex justify-content-between border-top pt-4">
+              <button className="btn btn-light border px-4 d-flex align-items-center gap-2" onClick={goList}>
+                <List size={18} /> 목록으로
+              </button>
+              <div className="d-flex gap-2">
+                <button className="btn btn-outline-primary px-4 d-flex align-items-center gap-2" onClick={goEdit}>
+                  <PenLine size={18} /> 수정
+                </button>
+                <button className="btn btn-outline-danger px-4 d-flex align-items-center gap-2" onClick={handleDelete}>
+                  <Trash2 size={18} /> 삭제
+                </button>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+};
+
+export default BoardNotice;

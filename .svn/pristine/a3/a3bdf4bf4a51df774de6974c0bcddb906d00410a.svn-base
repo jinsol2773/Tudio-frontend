@@ -1,0 +1,12 @@
+import React from 'react';
+
+const MeetingRoomBooked = () => {
+    return (
+        <div>
+            {/* 내용 */}
+            예약 현황 페이지
+        </div>
+    );
+};
+
+export default MeetingRoomBooked;
